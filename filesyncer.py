@@ -5,7 +5,6 @@ import os
 import sys
 import hashlib
 import urllib.request
-from urllib.parse import urlparse
 import json
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -79,60 +78,7 @@ def load_config(config_file: str = "config.json") -> List[Dict]:
         print_colored(f"配置文件 {config_file} 格式错误: {str(e)}", Fore.RED)
         return []
 
-def save_config(config_data: Dict, config_file: str = "config.json") -> bool:
-    """保存配置文件（仅包含文件列表）"""
-    try:
-        # 只保存files部分
-        data_to_save = {"files": config_data.get("files", [])}
-        
-        with open(config_file, 'w', encoding='utf-8') as f:
-            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
-        print(f"配置文件保存成功: {config_file}")  # 调试信息
-        return True
-    except Exception as e:
-        print_colored(f"保存配置文件失败: {str(e)}", Fore.RED)
-        return False
 
-def load_sync_history(config_file: str = "config.json") -> Dict:
-    """从配置文件加载同步历史记录"""
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            # 如果包含history键，返回整个数据
-            if isinstance(data, dict) and "history" in data:
-                return data
-            else:
-                return {"files": data if isinstance(data, list) else [], "history": []}
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"files": [], "history": []}
-
-def save_sync_history(history_data: Dict, config_file: str = "config.json") -> bool:
-    """将同步历史记录保存到配置文件"""
-    try:
-        # 读取现有配置
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
-                # 如果是旧格式（直接是数组），转换为新格式
-                if isinstance(config_data, list):
-                    config_data = {
-                        "files": config_data,
-                        "history": history_data.get("history", [])
-                    }
-                elif isinstance(config_data, dict):
-                    config_data["history"] = history_data.get("history", [])
-        except (FileNotFoundError, json.JSONDecodeError):
-            config_data = {
-                "files": [],
-                "history": history_data.get("history", [])
-            }
-        
-        result = save_config_with_history(config_data, config_file)
-        print(f"保存历史记录结果: {result}")  # 调试信息
-        return result
-    except Exception as e:
-        print_colored(f"保存历史记录失败: {str(e)}", Fore.RED)
-        return False
 
 def load_sync_history(history_file: str = "sync_history.json") -> Dict:
     """加载同步历史记录"""
@@ -157,8 +103,6 @@ def save_sync_history(history: Dict, history_file: str = "sync_history.json") ->
     except Exception as e:
         print_colored(f"保存历史记录失败: {str(e)}", Fore.RED)
         return False
-download_progress = {}  # 存储下载进度
-lock = threading.Lock()  # 用于线程安全
 
 def print_colored(text: str, color: str = '', style: str = '') -> None:
     """带颜色的打印函数"""
@@ -185,86 +129,7 @@ def calculate_md5(file_path: str) -> str:
     except FileNotFoundError:
         return ""
 
-def download_file(url: str, local_path: str, file_name: str) -> Tuple[bool, str]:
-    """下载文件并显示进度条"""
-    try:
-        # 创建目录（如果不存在）
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-        
-        # 打开URL
-        with urllib.request.urlopen(url) as response:
-            total_size = int(response.headers.get('content-length', 0))
-            downloaded = 0
-            
-            # 初始化进度
-            with lock:
-                download_progress[file_name] = {
-                    "total": total_size,
-                    "downloaded": 0,
-                    "finished": False
-                }
-            
-            # 写入文件
-            with open(local_path, 'wb') as f:
-                while True:
-                    chunk = response.read(8192)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    
-                    # 更新进度
-                    with lock:
-                        download_progress[file_name]["downloaded"] = downloaded
-        
-        # 标记为完成
-        with lock:
-            download_progress[file_name]["finished"] = True
-            
-        return True, "下载成功"
-    except Exception as e:
-        with lock:
-            if file_name in download_progress:
-                download_progress[file_name]["finished"] = True
-        return False, f"下载失败: {str(e)}"
 
-def show_progress() -> None:
-    """显示下载进度"""
-    while True:
-        with lock:
-            # 检查是否所有下载都已完成
-            all_finished = all(info["finished"] for info in download_progress.values())
-            
-            # 清屏（兼容多平台）
-            if platform.system() == "Windows":
-                os.system("cls")
-            else:
-                os.system("clear")
-            
-            # 显示每个文件的进度
-            for file_name, info in download_progress.items():
-                if info["total"] > 0:
-                    percent = min(100, int((info["downloaded"] / info["total"]) * 100))
-                else:
-                    percent = 100 if info["finished"] else 0
-                
-                # 绘制进度条
-                bar_length = 40
-                filled_length = int(bar_length * percent // 100)
-                bar = '█' * filled_length + '-' * (bar_length - filled_length)
-                
-                status = "完成" if info["finished"] else "下载中"
-                print_colored(f"{file_name}: |{bar}| {percent}% {status}", Fore.CYAN)
-                if info["total"] > 0:
-                    print(f"  已下载: {info['downloaded']}/{info['total']} 字节")
-                print()
-        
-        if all_finished:
-            break
-        
-        # 短暂休眠以减少CPU使用
-        import time
-        time.sleep(0.5)
 
 def compare_files(old_file: str, new_content: bytes) -> Tuple[bool, List[str]]:
     """比较文件差异"""

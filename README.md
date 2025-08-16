@@ -1,12 +1,14 @@
 # FileSyncer
 
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Python Version](https://img.shields.io/badge/python-3.x-blue.svg)](https://www.python.org/)
+
 一个通用的文件同步工具，可以从多个网址下载文件并跟踪更新，具有以下特性：
 
 ## 功能特性
 
 1. 从多个网址下载文件
 2. 比较文件差异和MD5值来检查更新
-3. 显示下载进度条
+3. 显示下载状态
 4. 使用颜色区分不同状态
 5. 跨平台兼容（Windows/Linux/macOS）
 6. 下载完成后等待用户按键退出
@@ -94,24 +96,7 @@ pip install colorama
 
 ### 添加更多文件
 
-在 `files` 数组中添加更多对象，用逗号分隔。例如：
-
-```json
-{
-  "files": [
-    {
-      "name": "Python官网首页",
-      "url": "https://www.python.org/",
-      "local_path": "downloads/python_homepage.html"
-    },
-    {
-      "name": "另一个文件",
-      "url": "https://example.com/file.txt",
-      "local_path": "downloads/another_file.txt"
-    }
-  ]
-}
-```
+在 `files` 数组中添加更多对象，用逗号分隔。
 
 ## 同步历史记录
 
